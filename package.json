@@ -1,20 +1,67 @@
 {
-  "name": "persona-local-first",
+  "name": "persona-mcp",
   "version": "0.1.0",
   "private": true,
+  "description": "Local-first, Markdown-driven persona engine for AI agents: TypeScript SDK and MCP stdio server.",
+  "license": "MIT",
+  "author": "Shanley Clarence Lacanlale",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "persona-mcp": "./dist/interfaces/mcp/stdioServer.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sc-lacanlale/Persona.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sc-lacanlale/Persona/issues"
+  },
+  "homepage": "https://github.com/sc-lacanlale/Persona#readme",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "persona",
+    "ai-agents",
+    "typescript"
+  ],
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.json",
-    "mcp:stdio": "node --enable-source-maps ./dist/src/interfaces/mcp/stdioServer.js",
-    "smoke": "node --enable-source-maps ./dist/scripts/smoke.js"
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json",
+    "mcp:stdio": "node --enable-source-maps ./dist/interfaces/mcp/stdioServer.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.1",
-    "zod": "^3.23.8"
+    "@modelcontextprotocol/server": "^2.3.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@modelcontextprotocol/client": "^2.3.1",
     "@types/node": "^22.10.7",
-    "typescript": "^5.8.3"
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.10",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.0",
+    "vitest": "^5.0.5"
   }
 }

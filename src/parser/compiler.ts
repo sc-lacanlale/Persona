@@ -1,4 +1,4 @@
-import { PersonaDocuments } from "../runtime/types.js";
+import type { PersonaDocuments } from "../runtime/types.js";
 
 const HEADER = "# PERSONA ENGINE PROTOCOL";
 
@@ -22,6 +22,6 @@ export function compilePersonaProtocol(documents: PersonaDocuments): string {
     "",
     "## Tier 3 User State",
     userProfile.length > 0 ? userProfile : "(empty)",
-    ""
+    "",
   ].join("\n");
 }

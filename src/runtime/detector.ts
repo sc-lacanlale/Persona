@@ -1,9 +1,9 @@
-import { CandidateTerm } from "./types.js";
+import type { CandidateTerm } from "./types.js";
 
 const TOKEN_REGEX = /[A-Za-z][A-Za-z0-9_-]{2,}/g;
 const CODE_HINT_REGEX = /[`{}()[\];<>_=]/;
 
-function extractKnownTerms(dialectDelta: string): Set<string> {
+export function knownTermsFromDialect(dialectDelta: string): Set<string> {
   const terms = new Set<string>();
   const lines = dialectDelta.replace(/\r\n/g, "\n").split("\n");
   for (const line of lines) {
@@ -27,11 +27,11 @@ export function detectUnmappedCandidates(
   message: string,
   dialectDelta: string,
   personaName: string,
-  nowIso: string = new Date().toISOString()
+  nowIso: string = new Date().toISOString(),
 ): CandidateTerm[] {
-  const knownTerms = extractKnownTerms(dialectDelta);
+  const knownTerms = knownTermsFromDialect(dialectDelta);
   const sourceType = CODE_HINT_REGEX.test(message) ? "code" : "text";
-  const matches = message.match(TOKEN_REGEX) ?? [];
+  const matches = message.match(new RegExp(TOKEN_REGEX.source, "g")) ?? [];
 
   const seen = new Set<string>();
   const candidates: CandidateTerm[] = [];
@@ -47,7 +47,7 @@ export function detectUnmappedCandidates(
       personaName,
       firstSeenAt: nowIso,
       occurrences: 1,
-      sourceType
+      sourceType,
     });
   }
 

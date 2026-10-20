@@ -1,12 +1,11 @@
 import { compilePersonaProtocol } from "../parser/compiler.js";
 import { MarkdownLoader } from "../parser/markdownLoader.js";
 import { detectUnmappedCandidates } from "./detector.js";
-import {
+import type {
   CandidateTerm,
   PersonaDocuments,
   ProcessUserTurnResult,
   ProfileMetadata,
-  UserProfileState
 } from "./types.js";
 
 export interface PersonaEngineConfig {
@@ -23,18 +22,25 @@ export class PersonaEngine {
   async processUserTurn(
     userId: string,
     message: string,
-    personaName: string
+    personaName: string,
   ): Promise<ProcessUserTurnResult> {
     const nowIso = new Date().toISOString();
     const paths = this.loader.buildPaths(personaName, userId);
 
     const personaCore = await this.loader.readRequiredPersonaCore(paths.personaCorePath);
-    const dialectDelta = await this.loader.readOrCreateDialectDelta(paths.dialectDeltaPath, personaName);
+    const dialectDelta = await this.loader.readOrCreateDialectDelta(
+      paths.dialectDeltaPath,
+      personaName,
+    );
 
     const profile = await this.loader.readOrCreateProfile(paths.profilePath, userId);
     profile.personaName = personaName;
     profile.updatedAt = nowIso;
-    profile.interactionContext = this.bumpInteractionContext(profile.interactionContext, message, nowIso);
+    profile.interactionContext = this.bumpInteractionContext(
+      profile.interactionContext,
+      message,
+      nowIso,
+    );
 
     const detected = detectUnmappedCandidates(message, dialectDelta, personaName, nowIso);
     profile.unmappedCandidates = this.mergeCandidates(profile.unmappedCandidates, detected);
@@ -49,7 +55,7 @@ export class PersonaEngine {
       userId,
       personaName,
       updatedAt: nowIso,
-      candidateCount: profile.unmappedCandidates.length
+      candidateCount: profile.unmappedCandidates.length,
     };
 
     return { systemInstruction, profileMetadata };
@@ -60,7 +66,7 @@ export class PersonaEngine {
     personaName: string,
     term: string,
     context: string,
-    sourceType: "text" | "code" = "text"
+    sourceType: "text" | "code" = "text",
   ): Promise<void> {
     const nowIso = new Date().toISOString();
     const paths = this.loader.buildPaths(personaName, userId);
@@ -74,10 +80,12 @@ export class PersonaEngine {
       personaName,
       firstSeenAt: nowIso,
       occurrences: 1,
-      sourceType
+      sourceType,
     };
 
-    profile.unmappedCandidates = this.mergeCandidates(profile.unmappedCandidates, [manualCandidate]);
+    profile.unmappedCandidates = this.mergeCandidates(profile.unmappedCandidates, [
+      manualCandidate,
+    ]);
     await this.loader.writeProfile(paths.profilePath, profile);
   }
 
@@ -110,7 +118,7 @@ export class PersonaEngine {
         ...existing,
         context: candidate.context,
         occurrences: existing.occurrences + 1,
-        sourceType: candidate.sourceType
+        sourceType: candidate.sourceType,
       });
     }
 
