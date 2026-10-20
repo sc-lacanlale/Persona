@@ -1,7 +1,8 @@
 import path from "node:path";
 
-import { MarkdownLoader } from "../parser/markdownLoader.js";
-import { CandidateTerm, UserProfileState } from "./types.js";
+import { MarkdownLoader, sanitizePathSegment } from "../parser/markdownLoader.js";
+import { knownTermsFromDialect } from "./detector.js";
+import type { UserProfileState } from "./types.js";
 
 export interface EvolutionRunResult {
   acceptedCount: number;
@@ -21,9 +22,12 @@ interface AggregatedItem {
   totalOccurrences: number;
 }
 
-function sanitizeId(value: string): string {
-  const safe = value.trim().replace(/[^a-zA-Z0-9._-]/g, "_");
-  return safe.length > 0 ? safe : "default";
+function candidateKey(personaName: string, term: string): string {
+  return `${personaName.trim().toLowerCase()}::${term.trim().toLowerCase()}`;
+}
+
+function dialectField(value: string): string {
+  return value.replace(/\s+/g, " ").replaceAll("|", "/").trim();
 }
 
 function validationPasses(item: AggregatedItem, minOccurrences: number): boolean {
@@ -48,7 +52,7 @@ export async function runEvolutionCycle(config: EvolutionConfig = {}): Promise<E
   const aggregated = new Map<string, AggregatedItem>();
   for (const profile of profiles) {
     for (const candidate of profile.state.unmappedCandidates) {
-      const key = `${candidate.personaName.toLowerCase()}::${candidate.term.toLowerCase()}`;
+      const key = candidateKey(candidate.personaName, candidate.term);
       const existing = aggregated.get(key);
       if (!existing) {
         aggregated.set(key, {
@@ -56,7 +60,7 @@ export async function runEvolutionCycle(config: EvolutionConfig = {}): Promise<E
           term: candidate.term,
           context: candidate.context,
           sourceType: candidate.sourceType,
-          totalOccurrences: candidate.occurrences
+          totalOccurrences: candidate.occurrences,
         });
         continue;
       }
@@ -64,31 +68,45 @@ export async function runEvolutionCycle(config: EvolutionConfig = {}): Promise<E
     }
   }
 
-  const accepted = [...aggregated.values()].filter((item) => validationPasses(item, minOccurrences));
-  const acceptedKeySet = new Set(accepted.map((item) => `${item.personaName.toLowerCase()}::${item.term.toLowerCase()}`));
+  const removalKeys = new Set<string>();
+  let acceptedCount = 0;
 
-  for (const acceptedItem of accepted) {
+  for (const item of aggregated.values()) {
+    const key = candidateKey(item.personaName, item.term);
     const dialectPath = path.join(
       config.baseDir ?? process.cwd(),
       "data",
       "personas",
-      sanitizeId(acceptedItem.personaName),
-      "DIALECT_DELTA.md"
+      sanitizePathSegment(item.personaName),
+      "DIALECT_DELTA.md",
     );
-    const line = `- term: ${acceptedItem.term} | sourceType: ${acceptedItem.sourceType} | recurrence: ${acceptedItem.totalOccurrences} | context: ${acceptedItem.context}`;
-    await loader.appendToDialectDelta(dialectPath, `## Accepted Term\n${line}`);
+    const existingDialect = await loader.readIfExists(dialectPath);
+    const known =
+      existingDialect === null ? new Set<string>() : knownTermsFromDialect(existingDialect);
+    if (known.has(item.term.trim().toLowerCase())) {
+      removalKeys.add(key);
+      continue;
+    }
+    if (!validationPasses(item, minOccurrences)) {
+      continue;
+    }
+
+    const line = `- term: ${dialectField(item.term)} | sourceType: ${item.sourceType} | recurrence: ${item.totalOccurrences} | context: ${dialectField(item.context)}`;
+    await loader.appendToDialectDelta(dialectPath, `## Accepted Term\n${line}`, item.personaName);
+    removalKeys.add(key);
+    acceptedCount += 1;
   }
 
   for (const profile of profiles) {
     profile.state.unmappedCandidates = profile.state.unmappedCandidates.filter(
-      (item) => !acceptedKeySet.has(`${item.personaName.toLowerCase()}::${item.term.toLowerCase()}`)
+      (item) => !removalKeys.has(candidateKey(item.personaName, item.term)),
     );
     profile.state.updatedAt = new Date().toISOString();
     await loader.writeProfile(profile.path, profile.state);
   }
 
   return {
-    acceptedCount: accepted.length,
-    scannedProfiles: profiles.length
+    acceptedCount,
+    scannedProfiles: profiles.length,
   };
 }
